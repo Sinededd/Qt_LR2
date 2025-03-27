@@ -103,9 +103,6 @@ ChangeDialog::ChangeDialog(Student &student, QWidget *parent, Qt::WindowFlags f)
     QPushButton* okBtn = new QPushButton( "OK" );
     connect( okBtn, SIGNAL( clicked() ), SLOT( accept() ) );
     buttonLayout->addWidget( okBtn );
-    QPushButton* applyBtn = new QPushButton( "Apply" );
-    connect( applyBtn, SIGNAL( clicked() ), SIGNAL( applied() ) );
-    buttonLayout->addWidget( applyBtn);
     QPushButton* cancelBtn = new QPushButton( "Cancel" );
     connect( cancelBtn, SIGNAL( clicked() ), SLOT( reject() ) );
     buttonLayout->addWidget( cancelBtn );

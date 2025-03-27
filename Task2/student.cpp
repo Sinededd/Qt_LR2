@@ -1,5 +1,13 @@
 #include "student.h"
 
+Student::Student()
+{
+    setGroup(0);
+    setFIO("", "", "");
+    marks1 = new int[5]{};
+    marks2 = new int[5]{};
+}
+
 Student::Student(int group, QString surname, QString name, QString patronymic)
 {
     setGroup(group);

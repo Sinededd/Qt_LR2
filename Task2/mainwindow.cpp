@@ -11,7 +11,93 @@ MainWindow::MainWindow(QWidget *parent)
     createMenu();
 }
 
-MainWindow::~MainWindow() {}
+void MainWindow::newFile()
+{
+    fileDirect = nullptr;
+    students.clear();
+    updateTable();
+}
+
+void MainWindow::loadFile()
+{
+    fileDirect = new QString(QFileDialog::getOpenFileName(this, "Выберите файл", QDir::homePath()));
+    if(FileDirect() == "")
+        return;
+    QFile file(FileDirect());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+
+    students.clear();
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        QStringList dataList = line.split(";");
+        if(dataList.size() != 14)
+            return;
+        Student currentStudent = Student(dataList[0].toInt(), dataList[1], dataList[2], dataList[3]);
+        for(int i = 0; i < 5; i++)
+        {
+            currentStudent.setMark(1, static_cast<Student::subjects>(i), dataList[i*2+4].toInt());
+            currentStudent.setMark(2, static_cast<Student::subjects>(i), dataList[i*2+5].toInt());
+        }
+        students.append(currentStudent);
+    }
+    updateTable();
+}
+
+void MainWindow::saveFile()
+{
+    if(FileDirect() == "" || !isOpenFile())
+    {
+        saveAsFile();
+        return;
+    }
+    QFile file(FileDirect());
+    if (!file.open(QIODevice::WriteOnly))
+    {
+        saveAsFile();
+        return;
+    }
+
+    for(int i = 0; i < students.count(); i++)
+    {
+        file.write((QString::number(students[i].group()) + ';' + students[i].surname() +';' +
+                        students[i].name() + ';' + students[i].patronymic() ).toUtf8());
+        QString marks;
+        for(int j = 0; j < 5; j++)
+        {
+            marks += ';';
+            marks += QString::number(students[i].getMark(1, static_cast<Student::subjects>(j))) + ';';
+            marks += QString::number(students[i].getMark(2, static_cast<Student::subjects>(j)));
+        }
+        file.write((marks + '\n').toUtf8());
+    }
+}
+
+void MainWindow::saveAsFile()
+{
+    fileDirect = new QString(QFileDialog::getSaveFileName(this, tr("Save File"),
+                                                          (QDir::homePath() + "/date.txt"),
+                                                          tr("Files (*.txt)")));
+    if(FileDirect() == "")
+        return;
+    QFile file(FileDirect());
+    file.open(QIODevice::WriteOnly);
+
+    for(int i = 0; i < students.count(); i++)
+    {
+        file.write((QString::number(students[i].group()) + ';' + students[i].surname() +';' +
+                    students[i].name() + ';' + students[i].patronymic() ).toUtf8());
+        QString marks;
+        for(int j = 0; j < 5; j++)
+        {
+            marks += ';';
+            marks += QString::number(students[i].getMark(1, static_cast<Student::subjects>(j))) + ';';
+            marks += QString::number(students[i].getMark(2, static_cast<Student::subjects>(j)));
+        }
+        file.write((marks + '\n').toUtf8());
+    }
+}
 
 void MainWindow::updateTable()
 {
@@ -75,7 +161,17 @@ void MainWindow::addStudent()
 
 void MainWindow::changeStudent()
 {
+    bool ok = 0;
+    int row = 0;
+    selectedStudent(&ok, &row);
+    if(!ok)
+        return;
 
+    Student newStudent(students[row]);
+    ChangeDialog *dial = new ChangeDialog(newStudent, this);
+    if(dial->exec())
+        students[row] = newStudent;
+    updateTable();
 }
 
 void MainWindow::deleteStudent()
@@ -96,6 +192,53 @@ void MainWindow::deleteStudent()
     }
 }
 
+void MainWindow::searchStudent(QString text)
+{
+    for(int i = 0; i < students.size(); i++)
+    {
+        if(!QString::number(students[i].group()).startsWith(text) && !students[i].surname().startsWith(text) &&
+            !students[i].name().startsWith(text) && !students[i].patronymic().startsWith(text))
+        {
+            tableView->hideRow(i);
+        }
+        else
+        {
+            tableView->showRow(i);
+        }
+    }
+}
+
+Student MainWindow::selectedStudent(bool *ok, int *id)
+{
+    *ok = 1;
+    QItemSelectionModel* selectionModel = tableView->selectionModel();
+    QModelIndexList selectedIndexes = selectionModel->selectedIndexes();
+    int row = 0;
+    if(selectedIndexes.size() > 0)
+    {
+        row = selectedIndexes.at(0).row();
+    }
+    else
+    {
+        *ok = 0;
+        return Student(0, "", "", "");
+    }
+    for(int i = 0; i < selectedIndexes.size(); i++)
+    {
+        if(row != selectedIndexes.at(i).row())
+        {
+            *ok = 0;
+            return Student(0, "", "", "");
+        }
+    }
+
+    Student curStudent(students[row]);
+    if(id != nullptr)
+        *id = row;
+
+    return curStudent;
+}
+
 void MainWindow::createDock()
 {
     dock = new QDockWidget(this);
@@ -109,13 +252,18 @@ void MainWindow::createDock()
     newStudentButton = new QPushButton("Добавить", dockContent);
     connect(newStudentButton, &QPushButton::clicked, this, &MainWindow::addStudent);
     detailsButton = new QPushButton("Подробнее", dockContent);
-    // connect(detailsButton, &QPushButton::clicked, this, &MainWindow::);
+    connect(detailsButton, &QPushButton::clicked, this, &MainWindow::changeStudent);
     deleteStudentButton = new QPushButton("Удалить", dockContent);
     connect(deleteStudentButton, &QPushButton::clicked, this, &MainWindow::deleteStudent);
+    searchEdit = new QLineEdit(dockContent);
+    searchEdit->setPlaceholderText("Поиск");
+    connect(searchEdit, &QLineEdit::textEdited, this, &MainWindow::searchStudent);
+
 
     contentLayout->addWidget(newStudentButton);
     contentLayout->addWidget(detailsButton);
     contentLayout->addWidget(deleteStudentButton);
+    contentLayout->addWidget(searchEdit);
     contentLayout->addStretch();
 }
 
@@ -123,16 +271,16 @@ void MainWindow::createMenu()
 {
     newAct = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentNew),
                          tr("&New"), this);
-    connect(newAct, &QAction::triggered, this, &MainWindow::newDate);
+    connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
     openAct = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentOpen),
                           tr("&Open"), this);
-    connect(openAct, &QAction::triggered, this, &MainWindow::loadDate);
+    connect(openAct, &QAction::triggered, this, &MainWindow::loadFile);
     saveAct = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentSave),
                           tr("&Save"), this);
-    connect(saveAct, &QAction::triggered, this, &MainWindow::saveDate);
+    connect(saveAct, &QAction::triggered, this, &MainWindow::saveFile);
     saveAsAct = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::DocumentSaveAs),
                             tr("&Save as"), this);
-    connect(saveAsAct, &QAction::triggered, this, &MainWindow::saveAsDate);
+    connect(saveAsAct, &QAction::triggered, this, &MainWindow::saveAsFile);
 
     fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(newAct);
@@ -153,6 +301,8 @@ void MainWindow::createTable()
     tableView = new QTableView(this);
     tableView->setModel(tableModel);
     tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    tableView->setSortingEnabled(true);
+    tableView->horizontalHeader()->setSortIndicatorShown(true);
 
     setCentralWidget(tableView);
 }

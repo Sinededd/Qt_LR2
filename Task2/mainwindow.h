@@ -11,6 +11,8 @@
 #include <QTableView>
 #include <QDockWidget>
 #include <QVBoxLayout>
+#include <QFileDialog>
+#include <QHeaderView>
 
 class MainWindow : public QMainWindow
 {
@@ -18,19 +20,25 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
 
-    void newDate(){};
-    void loadDate(){};
-    void saveDate(){};
-    void saveAsDate(){};
+    void newFile();
+    void loadFile();
+    void saveFile();
+    void saveAsFile();
     void updateTable();
 
     void addStudent();
     void changeStudent();
     void deleteStudent();
+    void searchStudent(QString text);
+
+    Student selectedStudent(bool *ok = nullptr, int *id = nullptr);
+    QString FileDirect() { return fileDirect == nullptr ? "" : *fileDirect; }
+     bool isOpenFile() { return fileDirect == nullptr ? 0 : 1; }
 
 private:
+    QString *fileDirect = nullptr;
+
     void createDock();
     void createMenu();
     void createTable();
@@ -45,6 +53,7 @@ private:
     QPushButton *newStudentButton;
     QPushButton *detailsButton;
     QPushButton *deleteStudentButton;
+    QLineEdit *searchEdit;
 
     QMenu *fileMenu;
     QAction *newAct;

@@ -8,6 +8,7 @@ class Student
 public:
     enum subjects {Math, OAIP, English, Physics, Belorussian};
 
+    Student();
     Student(int group, QString surname, QString name, QString patronymic);
 
     int group() { return myGroup; }
